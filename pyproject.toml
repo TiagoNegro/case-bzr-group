@@ -3,7 +3,9 @@ name = "case-bzr-group"
 version = "0.1.0"
 description = "Limpeza e conciliação auditável de precatórios"
 requires-python = ">=3.10"
-dependencies = []
+dependencies = [
+    "tzdata>=2026.6 ; sys_platform == 'win32'",
+]
 
 [tool.uv]
 package = false
