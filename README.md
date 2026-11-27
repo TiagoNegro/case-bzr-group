@@ -7,7 +7,7 @@ Script em Python para limpar os dados do case, comparar Tribunal e Hub e registr
 - Python 3.10 ou superior.
 - [uv](https://docs.astral.sh/uv/getting-started/installation/) instalado.
 
-O script usa a biblioteca padrão do Python. Os testes usam pytest, instalado pelo uv como dependência de desenvolvimento.
+O script usa a biblioteca padrão do Python e, no Windows, o pacote `tzdata` para consultar fusos IANA. Os testes usam pytest, instalado pelo uv como dependência de desenvolvimento.
 
 ## Como executar
 

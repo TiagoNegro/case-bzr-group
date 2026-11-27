@@ -44,9 +44,9 @@ class TestIntegracao:
         resultado, terminal = self.rodar()
         conflitantes = {valida_numero_processo('0023456-21.2020.8.26.0053'), valida_numero_processo('0045678-43.2021.5.02.0011')}
         for arquivo, campo in [('hub_limpo.csv', 'processo'), ('tribunal_limpo.csv', 'numero_processo')]:
-            with (self.saida / arquivo).open() as entrada:
+            with (self.saida / arquivo).open(encoding='utf-8', newline='') as entrada:
                 assert not any(valida_numero_processo(r[campo]) in conflitantes for r in csv.DictReader(entrada))
-        pendencias = json.loads((self.saida / 'pendencias.json').read_text())
+        pendencias = json.loads((self.saida / 'pendencias.json').read_bytes())
         for fonte in ('hub.csv', 'tribunal.csv'):
             registros = [p for p in pendencias if p['fonte'] == fonte]
             campo = 'processo' if fonte == 'hub.csv' else 'numero_processo'
@@ -74,12 +74,12 @@ class TestIntegracao:
         protegidos = [*self.entrada.iterdir(), ROOT / 'docs/schema.sql']
         antes = {p: hashlib.sha256(p.read_bytes()).hexdigest() for p in protegidos}
         resultado, terminal = self.rodar()
-        pagamentos = json.loads((self.saida / 'pagamentos_limpos.json').read_text())
+        pagamentos = json.loads((self.saida / 'pagamentos_limpos.json').read_bytes())
         assert [p['evento_id'] for p in pagamentos] == ['ev-003', 'ev-005', 'ev-006', 'ev-008', 'ev-011']
         assert resultado['fontes']['pagamentos.json']['descartados'] == 1
         assert resultado['fontes']['pagamentos.json']['pendentes'] == 7
-        assert len(json.loads((self.saida / 'apresentacoes_limpas.json').read_text())) == 4
-        relatorio = (self.saida / 'relatorio.md').read_text()
+        assert len(json.loads((self.saida / 'apresentacoes_limpas.json').read_bytes())) == 4
+        relatorio = (self.saida / 'relatorio.md').read_text(encoding='utf-8')
         for trecho in ('30.000,00', '31.000,00', 'União', 'Município de Santos', '0056789-54.2017.4.03.6100', '0067890-65.2016.8.26.0053', '2026-12-31', 'Windows-1252'):
             assert trecho in relatorio
         assert valida_numero_processo(CNJ) not in relatorio
@@ -92,11 +92,11 @@ class TestIntegracao:
 
     def test_parametros_liberam_data_e_fuso_sem_resolver_conflitos(self):
         self.rodar(formato_br=True, fuso='America/Sao_Paulo')
-        pagamentos = json.loads((self.saida / 'pagamentos_limpos.json').read_text())
+        pagamentos = json.loads((self.saida / 'pagamentos_limpos.json').read_bytes())
         evento = next((p for p in pagamentos if p['evento_id'] == 'ev-002'))
         assert (evento['valor'], evento['data_pagamento']) == ('2500.50', '2025-04-10')
         assert not any((p['evento_id'] in ('ev-001', 'ev-007') for p in pagamentos))
-        assert len(json.loads((self.saida / 'apresentacoes_limpas.json').read_text())) == 6
+        assert len(json.loads((self.saida / 'apresentacoes_limpas.json').read_bytes())) == 6
 
     def test_arquivo_invalido_nao_publica(self):
         (self.entrada / 'pagamentos.json').write_text('{')
@@ -113,7 +113,7 @@ class TestIntegracao:
         resultado, _ = self.rodar()
         for resumo in resultado['fontes'].values():
             assert resumo['recebidos'] == resumo['limpos'] + resumo['pendentes'] + resumo['descartados']
-        assert valida_numero_processo(CNJ) not in (self.saida / 'relatorio.json').read_text()
+        assert valida_numero_processo(CNJ) not in (self.saida / 'relatorio.json').read_text(encoding='utf-8')
         divergencias = [o for o in resultado['ocorrencias'] if 'Ente devedor divergente' in o['motivo']]
         assert len(divergencias) == 1
         assert divergencias[0]['antes'] == 'União'
@@ -152,9 +152,9 @@ class TestIntegracao:
                     verificar(item)
 
         for arquivo in self.saida.glob('*.json'):
-            verificar(json.loads(arquivo.read_text()))
+            verificar(json.loads(arquivo.read_bytes()))
         for arquivo in self.saida.glob('*.csv'):
-            with arquivo.open() as entrada:
+            with arquivo.open(encoding='utf-8', newline='') as entrada:
                 verificar(list(csv.DictReader(entrada)))
 
     @pytest.mark.parametrize('fonte', ['tribunal.csv', 'hub.csv', 'apresentacoes.json'])
@@ -162,7 +162,7 @@ class TestIntegracao:
     def test_repeticoes_e_conflitos_por_processo(self, fonte, conflitante):
         arquivo = self.entrada / fonte
         if fonte.endswith('.json'):
-            registros = json.loads(arquivo.read_text())
+            registros = json.loads(arquivo.read_bytes())
             novo = dict(registros[0])
             if conflitante:
                 novo['apresentado_em'] = '2025-04-03'
@@ -177,16 +177,16 @@ class TestIntegracao:
             arquivo.write_text(texto.rstrip('\n') + '\n' + linha + '\n', encoding=encoding)
         relatorio, _ = self.rodar()
         if fonte.endswith('.json'):
-            limpos = json.loads((self.saida / 'apresentacoes_limpas.json').read_text())
+            limpos = json.loads((self.saida / 'apresentacoes_limpas.json').read_bytes())
         else:
             destino = 'tribunal_limpo.csv' if fonte == 'tribunal.csv' else 'hub_limpo.csv'
-            with (self.saida / destino).open() as f:
+            with (self.saida / destino).open(encoding='utf-8', newline='') as f:
                 limpos = list(csv.DictReader(f))
         campo = 'numero_processo' if fonte == 'tribunal.csv' else 'processo'
         encontrados = [r for r in limpos if r[campo] == CNJ]
         assert len(encontrados) == (0 if conflitante else 1)
         if conflitante:
-            pendencias = json.loads((self.saida / 'pendencias.json').read_text())
+            pendencias = json.loads((self.saida / 'pendencias.json').read_bytes())
             afetados = [p for p in pendencias if p['fonte'] == fonte and p['original'][campo] == CNJ]
             assert len(afetados) == 2
         else:
@@ -203,7 +203,7 @@ class TestIntegracao:
         texto = arquivo.read_text(encoding='cp1252')
         arquivo.write_text(texto.rstrip('\n') + '\n' + texto.splitlines()[2] + '\n', encoding='cp1252')
         resultado, _ = self.rodar()
-        with (self.saida / 'tribunal_limpo.csv').open() as f:
+        with (self.saida / 'tribunal_limpo.csv').open(encoding='utf-8', newline='') as f:
             assert not any(r['numero_processo'].startswith('0023456') for r in csv.DictReader(f))
         assert any('Valor de face divergente' in o['motivo'] for o in resultado['ocorrencias'])
         assert resultado['fontes']['tribunal.csv']['descartados'] == 1
@@ -212,26 +212,26 @@ class TestIntegracao:
 
     def test_repeticao_com_mascara_diferente_e_consolidada(self):
         arquivo = self.entrada / 'apresentacoes.json'
-        registros = json.loads(arquivo.read_text())
+        registros = json.loads(arquivo.read_bytes())
         registros.append({**registros[0], 'processo': valida_numero_processo(CNJ)})
         arquivo.write_text(json.dumps(registros))
         resultado, _ = self.rodar()
-        limpos = json.loads((self.saida / 'apresentacoes_limpas.json').read_text())
+        limpos = json.loads((self.saida / 'apresentacoes_limpas.json').read_bytes())
         assert len([r for r in limpos if r['processo'] == CNJ]) == 1
         assert resultado['fontes']['apresentacoes.json']['descartados'] == 1
 
     @pytest.mark.parametrize('nova_data', ['2025-04-03', '2025-04-01'])
     def test_datas_divergentes_entre_fontes_ficam_pendentes(self, nova_data):
         arquivo = self.entrada / 'apresentacoes.json'
-        dados = json.loads(arquivo.read_text())
+        dados = json.loads(arquivo.read_bytes())
         dados[0]['apresentado_em'] = nova_data
         arquivo.write_text(json.dumps(dados))
         resultado, _ = self.rodar()
-        apresentacoes = json.loads((self.saida / 'apresentacoes_limpas.json').read_text())
-        with (self.saida / 'hub_limpo.csv').open() as f:
+        apresentacoes = json.loads((self.saida / 'apresentacoes_limpas.json').read_bytes())
+        with (self.saida / 'hub_limpo.csv').open(encoding='utf-8', newline='') as f:
             hub = list(csv.DictReader(f))
         assert not any(r['processo'] == CNJ for r in apresentacoes + hub)
-        pendencias = json.loads((self.saida / 'pendencias.json').read_text())
+        pendencias = json.loads((self.saida / 'pendencias.json').read_bytes())
         for fonte in ('hub.csv', 'apresentacoes.json'):
             afetados = [p for p in pendencias if p['fonte'] == fonte and p['original']['processo'] == CNJ]
             assert len(afetados) == 1
@@ -242,22 +242,22 @@ class TestIntegracao:
 
     def test_datas_equivalentes_no_fuso_nao_geram_conflito(self):
         arquivo = self.entrada / 'apresentacoes.json'
-        dados = json.loads(arquivo.read_text())
+        dados = json.loads(arquivo.read_bytes())
         dados[0]['apresentado_em'] = '2025-04-03T01:00:00Z'
         arquivo.write_text(json.dumps(dados))
         resultado, _ = self.rodar(fuso='America/Sao_Paulo')
-        with (self.saida / 'hub_limpo.csv').open() as f:
+        with (self.saida / 'hub_limpo.csv').open(encoding='utf-8', newline='') as f:
             assert any(r['processo'] == CNJ for r in csv.DictReader(f))
         assert not any('Data de apresentação divergente' in o['motivo'] and o['processo'] == CNJ
                        for o in resultado['ocorrencias'])
 
     def test_conflito_de_data_nao_duplica_pendencia_cadastral(self):
         arquivo = self.entrada / 'apresentacoes.json'
-        dados = json.loads(arquivo.read_text())
+        dados = json.loads(arquivo.read_bytes())
         dados[1]['apresentado_em'] = '2025-04-02'
         arquivo.write_text(json.dumps(dados))
         resultado, _ = self.rodar()
-        pendencias = json.loads((self.saida / 'pendencias.json').read_text())
+        pendencias = json.loads((self.saida / 'pendencias.json').read_bytes())
         afetados = [p for p in pendencias if p['fonte'] == 'hub.csv'
                     and p['original']['processo'].startswith('0023456')]
         assert len(afetados) == 1
