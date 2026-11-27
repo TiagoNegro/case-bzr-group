@@ -126,15 +126,31 @@ A conversão do valor pode falhar ou produzir um valor incorreto. A data pode se
 
 Confirmar os formatos aceitos e registrar as conversões realizadas. Usar aritmética decimal para dinheiro. Não adivinhar formatos ambíguos nem arredondar sem uma regra definida.
 
+---
+
+### 8. Layout real do CSV diverge da documentação
+
+**Observação:**
+
+Em [`DOCUMENTACAO_TRIBUNAL.md`](DOCUMENTACAO_TRIBUNAL.md), linha 20, `tribunal.csv` é descrito como UTF-8, com campos separados por vírgula. Porém, o arquivo recebido usa ponto e vírgula, visível já no cabeçalho da linha 1 (`numero_processo;ente_devedor;valor_face`). Os bytes dos caracteres acentuados, como `í` em `Município` na linha 2, não formam UTF-8 válido e são compatíveis com Latin-1/Windows-1252; essa amostra não permite distinguir as duas codificações. Além disso, o valor `45.000,00`, na linha 2, usa ponto para milhares e vírgula decimal, contrariando o ponto decimal exigido na linha 26 do manual.
+
+**Impacto direto:**
+
+Um leitor configurado conforme o manual pode falhar ao decodificar o arquivo ou interpretar incorretamente suas colunas e valores, comprometendo toda a conciliação. A divergência entre o contrato documentado e o arquivo recebido é uma causa de falhas de leitura; rejeições silenciosas, descritas no item 3, podem ocultar suas consequências. O fluxo de abrir e salvar no Excel é um possível ponto de alteração do formato, mas os arquivos disponíveis não comprovam onde a divergência foi introduzida.
+
+**Tratamento:**
+
+Preservar o arquivo original e registrar a codificação, o separador e o formato monetário utilizados na leitura. Para esta amostra, usar uma configuração explícita compatível com os bytes recebidos, separador `;` e conversão monetária brasileira com aritmética decimal. Validar o cabeçalho, a quantidade de campos e os valores, registrando falhas sem descartá-las silenciosamente. Confirmar com o tribunal o leiaute oficial e versionar o contrato de integração; evitar que abrir e salvar no Excel seja uma etapa obrigatória antes da importação.
+
 ## Dúvidas para o tribunal e a operação
 
-1. `evento_id` é único globalmente ou apenas por processo ou tribunal?
-2. A segunda versão de `ev-001` substitui a primeira? Como ordenar e aplicar retificações?
-3. Qual pagamento é revertido por `ev-007`? Há estornos parciais ou referência ao evento original?
-4. Qual é o valor de `ev-004`, o significado do valor negativo de `ev-009` e o processo de `ev-010`?
-5. O formato de `ev-002` é brasileiro, incluindo a data de 10 de abril? Quais regras de precisão são aceitas?
-6. Qual fuso define a data de apresentação? Qual é a origem oficial de `apresentacoes.json`?
+1. `evento_id` é único globalmente para o processo ou cada evento tem seu próprio?
+2. Nos casos onde são repetidos os `evento_id`, qual deve prevalecer? Como ordenar e aplicar retificações?
+3. Em questão de estornos, `ev-007` estorna `ev-006`. Mas na documentação do tribunal, não é aceito o estorno de um estorno. Como proceder em casos assim?
+4. No evento `ev-004`, o valor é `null`. Qual deve ser o comportamento neste caso? E em casos como `ev-009` com valor negativo?
+5. No caso do evento `ev-002`, o valor é uma string com vírgula. Qual deve ser o comportamento neste caso? Além disso, a data está no formato brasileiro (10/04/2025). Qual deve ser o comportamento neste caso? E no caso de repitição de dados identicos, qual deve ser o comportamento?
+6. Qual é a origem oficial de `apresentacoes.json`? E qual é o formato da data deve ser utilizado?
 7. Qual valor de face e ente devedor devem prevalecer nos conflitos entre as bases?
 8. As listas representam a mesma carteira e data de referência? Existem filtros que expliquem as ausências?
 9. Quais eventos já foram importados e quais falharam? Existem logs para reconstruir os totais?
-10. Quem recebe os alertas, valida as pendências e autoriza as correções?
+10. Qual é o layout oficial de `tribunal.csv`: codificação, separador e formato monetário? O arquivo disponível é o recebido do tribunal ou já foi salvo pelo Excel? Existe uma cópia anterior para comparação?
