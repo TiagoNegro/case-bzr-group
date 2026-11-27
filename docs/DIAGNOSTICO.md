@@ -35,7 +35,7 @@ Em [`pagamentos.json`](../data/original/pagamentos.json), linhas 51-56, o evento
 Se o estorno for ignorado, e sua representação for a de reversão do pagamento, isso manterá o total pago incorreto em R$ 5.000,00. Se o importador somar ambos os eventos, contabilizará R$ 10.000,00 indevidamente.
 
 **Tratamento:**
-Confirmar a documentação em conjunto ao Tribunal para definir seu procedimento, se o tipo `estorno` deve ser aceito, pois o seu tipo já é permitido pelo esquema do banco e efetuar a subtração do valor do estorno do total pago. Caso venha a ser o estorno venha a ser a reversão, subtrair seu valor do total pago. Até o esclarecimento preservar o evento como pendente e registrar o motivo.
+Confirmar com o tribunal o significado do estorno e sua vinculação ao pagamento original. Se representar reversão, subtrair seu valor do total pago. Até o esclarecimento, preservar o evento como pendente e registrar o motivo.
 
 ---
 
@@ -64,14 +64,14 @@ Realizar o tratamento da máscara do número do processo antes de inserir no ban
 
 ---
 
-### 5. Comparação da lista do tribunal com hub
+### 5. Comparação da lista do tribunal, hub e apresentações.json
 **Observação:**
-Em [`tribunal.csv`](../data/original/tribunal.csv) e [`hub.csv`](../data/original/hub.csv), há processos que não possuem correspondência entre si, o que pode causar incompatibilidade ao inserir no banco.
+Em [`tribunal.csv`](../data/original/tribunal.csv) e [`hub.csv`](../data/original/hub.csv), há processos que não possuem correspondência entre si, não há um padrão seja com máscara ou não no numero do processo, ente_devedor e ente também possuem divergências em seus nomes, falta de padronização e valores divergentes entre valor_face, também a falta de padrão na data de apresentação.
 
 **Impacto direto:**
-Se os processos não possuem correspondência, o banco não permitirá a inserção devido à restrição de tamanho, pois o número do processo terá mais de 20 caracteres.
+Os processos com numero de processo, ente, valores divergentes e data de apresentação divergentes não podem ser comparados de forma confiável. Podendo gerar prazo para pagamento incorreto, valores divergentes e dificuldade de alinhamento entre numeros de processos.
 
 **Tratamento:**
-Realizar o tratamento da máscara do número do processo antes de inserir no banco, garantindo que o número do processo venha comportar os 20 caracteres, preservervando os zeros iniciais.
+Verificar em conjunto ao tribunal uma forma de padronizar os dados, garantindo que os processos possam ser comparados de forma confiável.
 
 ---
